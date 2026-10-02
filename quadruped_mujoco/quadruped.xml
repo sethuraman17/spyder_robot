@@ -1,0 +1,404 @@
+<!--
+  8-DOF quadruped with visible hardware:
+    - 8 hobby servo motors on the joints
+    - Arduino Nano + extension shield on the torso
+    - Spatial-tendon "wires" routed outside the body
+
+  Decorative geoms use contype=0 / conaffinity=0 so they do not change collision.
+-->
+<mujoco model="quadruped_8dof">
+  <compiler angle="radian" autolimits="true"/>
+
+  <option gravity="0 0 -9.81" timestep="0.002" integrator="RK4"/>
+
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.25 0.25 0.25" specular="0.2 0.2 0.2"/>
+    <rgba haze="0.15 0.20 0.25 1"/>
+    <global azimuth="-45" elevation="-20"/>
+    <scale forcewidth="0.01" contactwidth="0.02" contactheight="0.01" com="0.02"
+           framelength="0.1" framewidth="0.005"/>
+  </visual>
+
+  <statistic center="0 0 0.18" extent="0.85"/>
+
+  <default>
+    <joint damping="0.8" armature="0.02" limited="true"/>
+    <geom friction="1.2 0.1 0.01" solref="0.012 1" solimp="0.9 0.95 0.001" condim="3"/>
+
+    <default class="body_geom">
+      <geom type="box" rgba="0.22 0.45 0.72 1"/>
+    </default>
+
+    <default class="hip_joint">
+      <joint type="hinge" range="0 7.0" damping="1.2" armature="0.04"/>
+    </default>
+
+    <default class="knee_joint">
+      <joint type="hinge" range="-0.2 2.8" damping="1.0" armature="0.03"/>
+    </default>
+
+    <default class="upper_leg_geom">
+      <geom type="capsule" size="0.022" rgba="0.85 0.55 0.20 1"/>
+    </default>
+
+    <default class="lower_leg_geom">
+      <geom type="capsule" size="0.018" rgba="0.90 0.70 0.30 1"/>
+    </default>
+
+    <default class="foot_geom">
+      <geom type="sphere" size="0.028" rgba="0.15 0.15 0.15 1"
+            friction="1.6 0.15 0.02"/>
+    </default>
+
+    <!-- Visual-only hardware (no collision) -->
+    <default class="visual_hw">
+      <geom contype="0" conaffinity="0" group="1" density="0"/>
+
+      <default class="servo_body">
+        <geom type="box" size="0.017 0.009 0.0155" rgba="0.18 0.22 0.55 1"/>
+      </default>
+
+      <default class="servo_tab">
+        <geom type="box" size="0.022 0.004 0.002" rgba="0.12 0.12 0.14 1"/>
+      </default>
+
+      <default class="servo_horn">
+        <geom type="cylinder" size="0.008 0.003" rgba="0.85 0.85 0.88 1"/>
+      </default>
+    </default>
+
+    <default class="servo_hip">
+      <position kp="120" kv="10" forcerange="-55 55" ctrlrange="0 7.0"/>
+    </default>
+
+    <default class="servo_knee">
+      <position kp="100" kv="8" forcerange="-45 45" ctrlrange="-0.2 2.8"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.55 0.70 0.85" rgb2="0.90 0.92 0.95"
+             width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.35 0.40 0.35" rgb2="0.55 0.60 0.55"
+             width="512" height="512" mark="edge" markrgb="0.25 0.30 0.25"/>
+    <material name="grid_mat" texture="grid" texrepeat="10 10" reflectance="0.1"/>
+  </asset>
+
+  <worldbody>
+    <light name="sun" pos="1.5 1.0 2.5" dir="-0.4 -0.3 -1" diffuse="0.9 0.9 0.85"/>
+    <light name="fill" pos="-1.0 -1.2 1.8" dir="0.3 0.4 -1" diffuse="0.35 0.40 0.45"/>
+
+    <geom name="floor" type="plane" size="3 3 0.05" material="grid_mat"
+          friction="1.5 0.1 0.01"/>
+
+    <camera name="iso" pos="1.05 -1.05 0.70"
+            xyaxes="0.707 0.707 0 -0.35 0.35 0.87" fovy="45"/>
+
+    <body name="torso" pos="0 0 0.22">
+      <freejoint name="root"/>
+      <inertial pos="0 0 0" mass="1.8" diaginertia="0.035 0.055 0.070"/>
+      <geom name="torso_geom" class="body_geom" size="0.225 0.15 0.06" mass="1.8"/>
+      <geom name="torso_top" type="box" size="0.18 0.12 0.015" pos="0 0 0.07"
+            rgba="0.18 0.35 0.55 1" mass="0.12"/>
+
+      <!-- ============================================================
+           ARDUINO NANO + EXTENSION SHIELD (top of chassis)
+           ============================================================ -->
+      <body name="electronics" pos="0.02 0 0.095">
+        <!-- Nano PCB (teal/blue) -->
+        <geom name="nano_pcb" class="visual_hw" type="box" size="0.030 0.010 0.0016"
+              rgba="0.05 0.28 0.70 1"/>
+        <!-- USB-C / Mini-USB plug -->
+        <geom name="nano_usb" class="visual_hw" type="box" size="0.005 0.004 0.0025"
+              pos="0.033 0 0.001" rgba="0.75 0.75 0.78 1"/>
+        <!-- MCU chip -->
+        <geom name="nano_mcu" class="visual_hw" type="box" size="0.006 0.006 0.0012"
+              pos="-0.002 0 0.003" rgba="0.08 0.08 0.08 1"/>
+        <!-- Pin rows -->
+        <geom name="nano_pins_l" class="visual_hw" type="box" size="0.026 0.0012 0.003"
+              pos="0 0.0085 0.002" rgba="0.85 0.70 0.15 1"/>
+        <geom name="nano_pins_r" class="visual_hw" type="box" size="0.026 0.0012 0.003"
+              pos="0 -0.0085 0.002" rgba="0.85 0.70 0.15 1"/>
+
+        <!-- Extension / sensor shield stacked on Nano -->
+        <geom name="shield_pcb" class="visual_hw" type="box" size="0.036 0.018 0.002"
+              pos="0 0 0.009" rgba="0.12 0.48 0.22 1"/>
+        <geom name="shield_silk" class="visual_hw" type="box" size="0.020 0.008 0.0004"
+              pos="0 0 0.0112" rgba="0.85 0.90 0.85 1"/>
+        <!-- Female headers -->
+        <geom name="shield_hdr_l" class="visual_hw" type="box" size="0.028 0.0025 0.004"
+              pos="0 0.014 0.013" rgba="0.10 0.10 0.10 1"/>
+        <geom name="shield_hdr_r" class="visual_hw" type="box" size="0.028 0.0025 0.004"
+              pos="0 -0.014 0.013" rgba="0.10 0.10 0.10 1"/>
+        <!-- Screw terminals / power block -->
+        <geom name="shield_power" class="visual_hw" type="box" size="0.010 0.008 0.005"
+              pos="-0.028 0 0.014" rgba="0.25 0.25 0.28 1"/>
+        <geom name="shield_led" class="visual_hw" type="cylinder" size="0.002 0.0015"
+              pos="0.020 0.010 0.012" rgba="0.95 0.15 0.10 1"/>
+
+        <!-- Pin sites on the shield (servo signal headers) -->
+        <site name="pin_leftup1"    pos="0.025  0.016 0.017" size="0.002"/>
+        <site name="pin_leftup2"    pos="0.018  0.016 0.017" size="0.002"/>
+        <site name="pin_rightup1"   pos="0.025 -0.016 0.017" size="0.002"/>
+        <site name="pin_rightup2"   pos="0.018 -0.016 0.017" size="0.002"/>
+        <site name="pin_leftdown1"  pos="-0.010  0.016 0.017" size="0.002"/>
+        <site name="pin_leftdown2"  pos="-0.017  0.016 0.017" size="0.002"/>
+        <site name="pin_rightdown1" pos="-0.010 -0.016 0.017" size="0.002"/>
+        <site name="pin_rightdown2" pos="-0.017 -0.016 0.017" size="0.002"/>
+        <site name="pin_gnd_bus"    pos="-0.028  0.006 0.017" size="0.002"/>
+        <site name="pin_vcc_bus"    pos="-0.028 -0.006 0.017" size="0.002"/>
+      </body>
+
+      <!-- Outside cable harness exit points (wires leave the chassis here) -->
+      <site name="exit_fl" pos="0.20  0.13 0.10" size="0.004"/>
+      <site name="exit_fr" pos="0.20 -0.13 0.10" size="0.004"/>
+      <site name="exit_rl" pos="-0.20  0.13 0.10" size="0.004"/>
+      <site name="exit_rr" pos="-0.20 -0.13 0.10" size="0.004"/>
+      <site name="exit_mid_l" pos="0.0  0.155 0.11" size="0.004"/>
+      <site name="exit_mid_r" pos="0.0 -0.155 0.11" size="0.004"/>
+
+      <!-- Loose zip-tie / cable-clamp blocks on the body edge -->
+      <geom name="clamp_fl" class="visual_hw" type="box" size="0.008 0.006 0.004"
+            pos="0.20 0.13 0.085" rgba="0.1 0.1 0.1 1"/>
+      <geom name="clamp_fr" class="visual_hw" type="box" size="0.008 0.006 0.004"
+            pos="0.20 -0.13 0.085" rgba="0.1 0.1 0.1 1"/>
+      <geom name="clamp_rl" class="visual_hw" type="box" size="0.008 0.006 0.004"
+            pos="-0.20 0.13 0.085" rgba="0.1 0.1 0.1 1"/>
+      <geom name="clamp_rr" class="visual_hw" type="box" size="0.008 0.006 0.004"
+            pos="-0.20 -0.13 0.085" rgba="0.1 0.1 0.1 1"/>
+
+      <!-- ============================================================
+           FRONT LEFT: leftup1 / leftup2
+           ============================================================ -->
+      <body name="fl_hip" pos="0.20 0.16 -0.04" euler="0 -2.530727415 0">
+        <joint name="leftup1" class="hip_joint" axis="0 1 0"/>
+        <inertial pos="0 0 -0.09" mass="0.12" diaginertia="0.0004 0.0004 0.00008"/>
+        <geom name="fl_upper" class="upper_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.12"/>
+
+        <!-- Hip servo (output shaft along joint Y) -->
+        <geom name="servo_leftup1_body" class="servo_body" pos="0 0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftup1_tab" class="servo_tab" pos="0 0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftup1_horn" class="servo_horn" pos="0 0.040 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftup1_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+              pos="0.012 0.028 0.012" rgba="0.92 0.55 0.12 1"/>
+        <site name="servo_leftup1_wire" pos="0.014 0.028 0.014" size="0.003"/>
+
+        <body name="fl_knee" pos="0 0 -0.18" euler="0 -1.570796327 0">
+          <joint name="leftup2" class="knee_joint" axis="0 1 0"/>
+          <inertial pos="0 0 -0.09" mass="0.08" diaginertia="0.0003 0.0003 0.00005"/>
+          <geom name="fl_lower" class="lower_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.08"/>
+          <geom name="fl_foot" class="foot_geom" pos="0 0 -0.18" mass="0.03"/>
+
+          <!-- Knee servo -->
+          <geom name="servo_leftup2_body" class="servo_body" pos="0 0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftup2_tab" class="servo_tab" pos="0 0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftup2_horn" class="servo_horn" pos="0 0.038 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftup2_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+                pos="0.012 0.026 0.012" rgba="0.92 0.55 0.12 1"/>
+          <site name="servo_leftup2_wire" pos="0.014 0.026 0.014" size="0.003"/>
+        </body>
+      </body>
+
+      <!-- ============================================================
+           FRONT RIGHT: rightup1 / rightup2
+           ============================================================ -->
+      <body name="fr_hip" pos="0.20 -0.16 -0.04" euler="0 2.530727415 0">
+        <joint name="rightup1" class="hip_joint" axis="0 -1 0"/>
+        <inertial pos="0 0 -0.09" mass="0.12" diaginertia="0.0004 0.0004 0.00008"/>
+        <geom name="fr_upper" class="upper_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.12"/>
+
+        <geom name="servo_rightup1_body" class="servo_body" pos="0 -0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightup1_tab" class="servo_tab" pos="0 -0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightup1_horn" class="servo_horn" pos="0 -0.040 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightup1_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+              pos="0.012 -0.028 0.012" rgba="0.92 0.55 0.12 1"/>
+        <site name="servo_rightup1_wire" pos="0.014 -0.028 0.014" size="0.003"/>
+
+        <body name="fr_knee" pos="0 0 -0.18" euler="0 1.570796327 0">
+          <joint name="rightup2" class="knee_joint" axis="0 -1 0"/>
+          <inertial pos="0 0 -0.09" mass="0.08" diaginertia="0.0003 0.0003 0.00005"/>
+          <geom name="fr_lower" class="lower_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.08"/>
+          <geom name="fr_foot" class="foot_geom" pos="0 0 -0.18" mass="0.03"/>
+
+          <geom name="servo_rightup2_body" class="servo_body" pos="0 -0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightup2_tab" class="servo_tab" pos="0 -0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightup2_horn" class="servo_horn" pos="0 -0.038 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightup2_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+                pos="0.012 -0.026 0.012" rgba="0.92 0.55 0.12 1"/>
+          <site name="servo_rightup2_wire" pos="0.014 -0.026 0.014" size="0.003"/>
+        </body>
+      </body>
+
+      <!-- ============================================================
+           REAR LEFT: leftdown1 / leftdown2
+           ============================================================ -->
+      <body name="rl_hip" pos="-0.20 0.16 -0.04" euler="0 -2.530727415 0">
+        <joint name="leftdown1" class="hip_joint" axis="0 1 0"/>
+        <inertial pos="0 0 -0.09" mass="0.12" diaginertia="0.0004 0.0004 0.00008"/>
+        <geom name="rl_upper" class="upper_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.12"/>
+
+        <geom name="servo_leftdown1_body" class="servo_body" pos="0 0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftdown1_tab" class="servo_tab" pos="0 0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftdown1_horn" class="servo_horn" pos="0 0.040 0" euler="1.5708 0 0"/>
+        <geom name="servo_leftdown1_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+              pos="0.012 0.028 0.012" rgba="0.92 0.55 0.12 1"/>
+        <site name="servo_leftdown1_wire" pos="0.014 0.028 0.014" size="0.003"/>
+
+        <body name="rl_knee" pos="0 0 -0.18" euler="0 -1.570796327 0">
+          <joint name="leftdown2" class="knee_joint" axis="0 1 0"/>
+          <inertial pos="0 0 -0.09" mass="0.08" diaginertia="0.0003 0.0003 0.00005"/>
+          <geom name="rl_lower" class="lower_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.08"/>
+          <geom name="rl_foot" class="foot_geom" pos="0 0 -0.18" mass="0.03"/>
+
+          <geom name="servo_leftdown2_body" class="servo_body" pos="0 0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftdown2_tab" class="servo_tab" pos="0 0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftdown2_horn" class="servo_horn" pos="0 0.038 0" euler="1.5708 0 0"/>
+          <geom name="servo_leftdown2_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+                pos="0.012 0.026 0.012" rgba="0.92 0.55 0.12 1"/>
+          <site name="servo_leftdown2_wire" pos="0.014 0.026 0.014" size="0.003"/>
+        </body>
+      </body>
+
+      <!-- ============================================================
+           REAR RIGHT: rightdown1 / rightdown2
+           ============================================================ -->
+      <body name="rr_hip" pos="-0.20 -0.16 -0.04" euler="0 2.530727415 0">
+        <joint name="rightdown1" class="hip_joint" axis="0 -1 0"/>
+        <inertial pos="0 0 -0.09" mass="0.12" diaginertia="0.0004 0.0004 0.00008"/>
+        <geom name="rr_upper" class="upper_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.12"/>
+
+        <geom name="servo_rightdown1_body" class="servo_body" pos="0 -0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightdown1_tab" class="servo_tab" pos="0 -0.028 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightdown1_horn" class="servo_horn" pos="0 -0.040 0" euler="1.5708 0 0"/>
+        <geom name="servo_rightdown1_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+              pos="0.012 -0.028 0.012" rgba="0.92 0.55 0.12 1"/>
+        <site name="servo_rightdown1_wire" pos="0.014 -0.028 0.014" size="0.003"/>
+
+        <body name="rr_knee" pos="0 0 -0.18" euler="0 1.570796327 0">
+          <joint name="rightdown2" class="knee_joint" axis="0 -1 0"/>
+          <inertial pos="0 0 -0.09" mass="0.08" diaginertia="0.0003 0.0003 0.00005"/>
+          <geom name="rr_lower" class="lower_leg_geom" fromto="0 0 0 0 0 -0.18" mass="0.08"/>
+          <geom name="rr_foot" class="foot_geom" pos="0 0 -0.18" mass="0.03"/>
+
+          <geom name="servo_rightdown2_body" class="servo_body" pos="0 -0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightdown2_tab" class="servo_tab" pos="0 -0.026 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightdown2_horn" class="servo_horn" pos="0 -0.038 0" euler="1.5708 0 0"/>
+          <geom name="servo_rightdown2_plug" class="visual_hw" type="box" size="0.004 0.003 0.005"
+                pos="0.012 -0.026 0.012" rgba="0.92 0.55 0.12 1"/>
+          <site name="servo_rightdown2_wire" pos="0.014 -0.026 0.014" size="0.003"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <!-- ============================================================
+       WIRE HARNESS (visual spatial tendons — zero stiffness)
+       Route: shield pin -> outside exit -> servo connector
+       ============================================================ -->
+  <tendon>
+    <!-- Signal / main servo leads (dark grey) -->
+    <spatial name="wire_leftup1" width="0.0028" rgba="0.08 0.08 0.10 1" stiffness="0" damping="0">
+      <site site="pin_leftup1"/>
+      <site site="exit_mid_l"/>
+      <site site="exit_fl"/>
+      <site site="servo_leftup1_wire"/>
+    </spatial>
+    <spatial name="wire_leftup2" width="0.0026" rgba="0.10 0.10 0.12 1" stiffness="0" damping="0">
+      <site site="pin_leftup2"/>
+      <site site="exit_fl"/>
+      <site site="servo_leftup2_wire"/>
+    </spatial>
+
+    <spatial name="wire_rightup1" width="0.0028" rgba="0.08 0.08 0.10 1" stiffness="0" damping="0">
+      <site site="pin_rightup1"/>
+      <site site="exit_mid_r"/>
+      <site site="exit_fr"/>
+      <site site="servo_rightup1_wire"/>
+    </spatial>
+    <spatial name="wire_rightup2" width="0.0026" rgba="0.10 0.10 0.12 1" stiffness="0" damping="0">
+      <site site="pin_rightup2"/>
+      <site site="exit_fr"/>
+      <site site="servo_rightup2_wire"/>
+    </spatial>
+
+    <spatial name="wire_leftdown1" width="0.0028" rgba="0.08 0.08 0.10 1" stiffness="0" damping="0">
+      <site site="pin_leftdown1"/>
+      <site site="exit_mid_l"/>
+      <site site="exit_rl"/>
+      <site site="servo_leftdown1_wire"/>
+    </spatial>
+    <spatial name="wire_leftdown2" width="0.0026" rgba="0.10 0.10 0.12 1" stiffness="0" damping="0">
+      <site site="pin_leftdown2"/>
+      <site site="exit_rl"/>
+      <site site="servo_leftdown2_wire"/>
+    </spatial>
+
+    <spatial name="wire_rightdown1" width="0.0028" rgba="0.08 0.08 0.10 1" stiffness="0" damping="0">
+      <site site="pin_rightdown1"/>
+      <site site="exit_mid_r"/>
+      <site site="exit_rr"/>
+      <site site="servo_rightdown1_wire"/>
+    </spatial>
+    <spatial name="wire_rightdown2" width="0.0026" rgba="0.10 0.10 0.12 1" stiffness="0" damping="0">
+      <site site="pin_rightdown2"/>
+      <site site="exit_rr"/>
+      <site site="servo_rightdown2_wire"/>
+    </spatial>
+
+    <!-- Orange signal accents (classic hobby-servo look) -->
+    <spatial name="sig_leftup1" width="0.0014" rgba="0.95 0.45 0.08 1" stiffness="0" damping="0">
+      <site site="pin_leftup1"/>
+      <site site="exit_fl"/>
+      <site site="servo_leftup1_wire"/>
+    </spatial>
+    <spatial name="sig_rightup1" width="0.0014" rgba="0.95 0.45 0.08 1" stiffness="0" damping="0">
+      <site site="pin_rightup1"/>
+      <site site="exit_fr"/>
+      <site site="servo_rightup1_wire"/>
+    </spatial>
+    <spatial name="sig_leftdown1" width="0.0014" rgba="0.95 0.45 0.08 1" stiffness="0" damping="0">
+      <site site="pin_leftdown1"/>
+      <site site="exit_rl"/>
+      <site site="servo_leftdown1_wire"/>
+    </spatial>
+    <spatial name="sig_rightdown1" width="0.0014" rgba="0.95 0.45 0.08 1" stiffness="0" damping="0">
+      <site site="pin_rightdown1"/>
+      <site site="exit_rr"/>
+      <site site="servo_rightdown1_wire"/>
+    </spatial>
+
+    <!-- Red VCC bus spur -->
+    <spatial name="wire_vcc_fl" width="0.0018" rgba="0.85 0.10 0.10 1" stiffness="0" damping="0">
+      <site site="pin_vcc_bus"/>
+      <site site="exit_mid_l"/>
+      <site site="exit_fl"/>
+    </spatial>
+    <spatial name="wire_vcc_fr" width="0.0018" rgba="0.85 0.10 0.10 1" stiffness="0" damping="0">
+      <site site="pin_vcc_bus"/>
+      <site site="exit_mid_r"/>
+      <site site="exit_fr"/>
+    </spatial>
+  </tendon>
+
+  <actuator>
+    <position name="act_leftup1"    joint="leftup1"    class="servo_hip"/>
+    <position name="act_rightup1"   joint="rightup1"   class="servo_hip"/>
+    <position name="act_leftdown1"  joint="leftdown1"  class="servo_hip"/>
+    <position name="act_rightdown1" joint="rightdown1" class="servo_hip"/>
+    <position name="act_leftup2"    joint="leftup2"    class="servo_knee"/>
+    <position name="act_rightup2"   joint="rightup2"   class="servo_knee"/>
+    <position name="act_leftdown2"  joint="leftdown2"  class="servo_knee"/>
+    <position name="act_rightdown2" joint="rightdown2" class="servo_knee"/>
+  </actuator>
+
+  <keyframe>
+    <key name="sitting"
+         qpos="0 0 0.22 1 0 0 0
+               2.530727415 0
+               2.530727415 0
+               2.530727415 0
+               2.530727415 0"
+         ctrl="2.530727415 2.530727415 2.530727415 2.530727415
+               0 0 0 0"/>
+  </keyframe>
+</mujoco>

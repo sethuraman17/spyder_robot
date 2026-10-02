@@ -1,0 +1,3 @@
+venv/
+quadruped_mujoco/__pycache__/
+demo.mp4
